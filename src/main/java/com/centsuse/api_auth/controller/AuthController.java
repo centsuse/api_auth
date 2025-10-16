@@ -106,6 +106,12 @@ public class AuthController {
         try {
             String refreshToken = request.getRefreshToken();
 
+            // 检查刷新令牌是否在黑名单中
+            if (Boolean.TRUE.equals(redisTemplate.hasKey("blacklist:" + refreshToken))) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                        .body(ApiResponse.error("刷新令牌已失效"));
+            }
+
             if (jwtTokenUtil.validateToken(refreshToken)) {
                 String username = jwtTokenUtil.getUsernameFromToken(refreshToken);
                 AuthUser userDetails = (AuthUser) userDetailsService.loadUserByUsername(username);
