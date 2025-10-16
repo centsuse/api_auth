@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.centsuse.api_auth.mapper.SysDataPermissionRuleMapper">
+
+    <resultMap id="BaseResultMap" type="com.centsuse.api_auth.dao.SysDataPermissionRule">
+            <id property="id" column="id" />
+            <result property="name" column="name" />
+            <result property="type" column="type" />
+            <result property="roleId" column="role_id" />
+            <result property="permissionId" column="permission_id" />
+            <result property="conditionExpression" column="condition_expression" />
+            <result property="customSql" column="custom_sql" />
+            <result property="fieldFilters" column="field_filters" />
+            <result property="status" column="status" />
+            <result property="createTime" column="create_time" />
+            <result property="updateTime" column="update_time" />
+            <result property="createBy" column="create_by" />
+            <result property="updateBy" column="update_by" />
+    </resultMap>
+
+    <sql id="Base_Column_List">
+        id,name,type,role_id,permission_id,condition_expression,
+        custom_sql,field_filters,status,create_time,update_time,
+        create_by,update_by
+    </sql>
+</mapper>
