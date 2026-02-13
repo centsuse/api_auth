@@ -10,6 +10,9 @@ import com.centsuse.api_auth.mapper.SysOperateLogMapper;
 import com.centsuse.api_auth.mapper.SysTokenMapper;
 import com.centsuse.api_auth.mapper.SysUserMapper;
 import com.centsuse.api_auth.utils.JwtTokenUtil;
+import com.centsuse.api_auth.utils.OperateLogUtil;
+import com.centsuse.api_auth.utils.PasswordValidator;
+import com.centsuse.api_auth.utils.WebUtil;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import org.slf4j.Logger;
@@ -64,6 +67,9 @@ public class AuthController {
     @Autowired
     private UserDetailsService userDetailsService;
 
+    @Autowired
+    private OperateLogUtil operateLogUtil;
+
     @PostMapping("/login")
     public ResponseEntity<?> login(@RequestBody @Valid LoginRequest request,
                                    HttpServletRequest httpRequest) {
@@ -84,7 +90,7 @@ public class AuthController {
             saveTokenInfo(userDetails, accessToken, refreshToken, httpRequest);
 
             // 记录操作日志
-            logOperate(userDetails, "用户登录", 1, httpRequest);
+            operateLogUtil.logLogin("用户登录成功", 1, httpRequest);
 
             return ResponseEntity.ok(LoginResponse.builder()
                     .accessToken(accessToken)
@@ -96,18 +102,20 @@ public class AuthController {
 
         } catch (Exception e) {
             log.error("登录失败: {}", e.getMessage());
+            operateLogUtil.logLogin("用户登录失败: " + e.getMessage(), 0, httpRequest);
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                     .body(ApiResponse.error("用户名或密码错误"));
         }
     }
 
     @PostMapping("/refresh")
-    public ResponseEntity<?> refreshToken(@RequestBody RefreshTokenRequest request) {
+    public ResponseEntity<?> refreshToken(@RequestBody RefreshTokenRequest request, HttpServletRequest httpRequest) {
         try {
             String refreshToken = request.getRefreshToken();
 
             // 检查刷新令牌是否在黑名单中
             if (Boolean.TRUE.equals(redisTemplate.hasKey("blacklist:" + refreshToken))) {
+                operateLogUtil.logRefreshToken("令牌刷新失败：刷新令牌已失效", 0, httpRequest);
                 return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                         .body(ApiResponse.error("刷新令牌已失效"));
             }
@@ -118,15 +126,18 @@ public class AuthController {
 
                 String newAccessToken = jwtTokenUtil.generateToken(userDetails);
 
+                operateLogUtil.logRefreshToken("令牌刷新成功", 1, httpRequest);
                 return ResponseEntity.ok(RefreshTokenResponse.builder()
                         .accessToken(newAccessToken)
                         .expiresIn(jwtTokenUtil.getExpiration())
                         .build());
             }
 
+            operateLogUtil.logRefreshToken("令牌刷新失败：刷新令牌无效", 0, httpRequest);
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                     .body(ApiResponse.error("刷新令牌无效"));
         } catch (Exception e) {
+            operateLogUtil.logRefreshToken("令牌刷新失败：" + e.getMessage(), 0, httpRequest);
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                     .body(ApiResponse.error("令牌刷新失败"));
         }
@@ -135,7 +146,7 @@ public class AuthController {
     @PostMapping("/logout")
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<?> logout(HttpServletRequest request) {
-        String token = getTokenFromRequest(request);
+        String token = WebUtil.getTokenFromRequest(request);
         if (token != null) {
             // 更新数据库令牌状态
             SysToken tokenEntity = tokenMapper.selectOne(
@@ -154,37 +165,51 @@ public class AuthController {
             }
 
             // 记录操作日志
-            AuthUser userDetails = getCurrentUser();
-            logOperate(userDetails, "用户登出", 1, request);
+            operateLogUtil.logLogout("用户登出成功", 1, request);
         }
 
         return ResponseEntity.ok(ApiResponse.success("登出成功"));
     }
 
     @PostMapping("/register")
-    public ResponseEntity<?> register(@RequestBody @Valid RegisterRequest request) {
-        // 检查用户名是否已存在
-        if (userMapper.selectCount(new QueryWrapper<SysUser>()
-                .eq("username", request.getUsername())) > 0) {
+    public ResponseEntity<?> register(@RequestBody @Valid RegisterRequest request, HttpServletRequest httpRequest) {
+        try {
+            // 检查用户名是否已存在
+            if (userMapper.selectCount(new QueryWrapper<SysUser>()
+                    .eq("username", request.getUsername())) > 0) {
+                operateLogUtil.logRegister("用户注册失败：用户名已存在", 0, httpRequest);
+                return ResponseEntity.badRequest()
+                        .body(ApiResponse.error("用户名已存在"));
+            }
+
+            // 验证密码强度
+            if (!PasswordValidator.validatePassword(request.getPassword())) {
+                operateLogUtil.logRegister("用户注册失败：" + PasswordValidator.getPasswordStrengthHint(), 0, httpRequest);
+                return ResponseEntity.badRequest()
+                        .body(ApiResponse.error(PasswordValidator.getPasswordStrengthHint()));
+            }
+
+            // 创建用户
+            SysUser user = new SysUser();
+            user.setUsername(request.getUsername());
+            user.setPassword(passwordEncoder.encode(request.getPassword()));
+            user.setNickname(request.getNickname());
+            user.setEmail(request.getEmail());
+            user.setPhone(request.getPhone());
+            user.setAppCode(request.getAppCode());
+            user.setStatus(1);
+            user.setIsSuperAdmin(0);
+            user.setCreateTime(new Date());
+
+            userMapper.insert(user);
+
+            operateLogUtil.logRegister("用户注册成功：" + request.getUsername(), 1, httpRequest);
+            return ResponseEntity.ok(ApiResponse.success("注册成功"));
+        } catch (Exception e) {
+            operateLogUtil.logRegister("用户注册失败：" + e.getMessage(), 0, httpRequest);
             return ResponseEntity.badRequest()
-                    .body(ApiResponse.error("用户名已存在"));
+                    .body(ApiResponse.error("注册失败：" + e.getMessage()));
         }
-
-        // 创建用户
-        SysUser user = new SysUser();
-        user.setUsername(request.getUsername());
-        user.setPassword(passwordEncoder.encode(request.getPassword()));
-        user.setNickname(request.getNickname());
-        user.setEmail(request.getEmail());
-        user.setPhone(request.getPhone());
-        user.setAppCode(request.getAppCode());
-        user.setStatus(1);
-        user.setIsSuperAdmin(0);
-        user.setCreateTime(new Date());
-
-        userMapper.insert(user);
-
-        return ResponseEntity.ok(ApiResponse.success("注册成功"));
     }
 
     private void saveTokenInfo(AuthUser user, String accessToken, String refreshToken,
@@ -204,23 +229,6 @@ public class AuthController {
         tokenMapper.insert(token);
     }
 
-    private void logOperate(AuthUser user, String content, Integer status, HttpServletRequest request) {
-        SysOperateLog log = new SysOperateLog();
-        log.setAppCode(user.getAppCode());
-        log.setModule("认证模块");
-        // 登录操作
-        log.setType(1);
-        log.setContent(content);
-        log.setUserId(user.getId());
-        log.setUserName(user.getUsername());
-        log.setIpAddress(getClientIp(request));
-        log.setUserAgent(request.getHeader("User-Agent"));
-        log.setOperateTime(new Date());
-        log.setStatus(status);
-
-        operateLogMapper.insert(log);
-    }
-
     private UserInfo buildUserInfo(AuthUser user) {
         return UserInfo.builder()
                 .userId(user.getId())
@@ -233,35 +241,8 @@ public class AuthController {
                 .build();
     }
 
-    private String getClientIp(HttpServletRequest request) {
-        String ip = request.getHeader("X-Forwarded-For");
-        if (ip == null || ip.length() == 0 || "unknown".equalsIgnoreCase(ip)) {
-            ip = request.getHeader("Proxy-Client-IP");
-        }
-        if (ip == null || ip.length() == 0 || "unknown".equalsIgnoreCase(ip)) {
-            ip = request.getHeader("WL-Proxy-Client-IP");
-        }
-        if (ip == null || ip.length() == 0 || "unknown".equalsIgnoreCase(ip)) {
-            ip = request.getRemoteAddr();
-        }
-        return ip;
-    }
-
     private String getClientId(HttpServletRequest request) {
         return request.getHeader("X-Client-Id") != null ?
                 request.getHeader("X-Client-Id") : "unknown";
-    }
-
-    private AuthUser getCurrentUser() {
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        return (AuthUser) authentication.getPrincipal();
-    }
-
-    private String getTokenFromRequest(HttpServletRequest request) {
-        String bearerToken = request.getHeader("Authorization");
-        if (StringUtils.hasText(bearerToken) && bearerToken.startsWith("Bearer ")) {
-            return bearerToken.substring(7);
-        }
-        return null;
     }
 }

@@ -6,6 +6,8 @@ import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
 import lombok.Data;
 import org.springframework.beans.factory.annotation.Value;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
 import java.util.Date;
@@ -18,6 +20,7 @@ import java.util.Map;
 @Component
 @Data
 public class JwtTokenUtil {
+    private static final Logger logger = LoggerFactory.getLogger(JwtTokenUtil.class);
     private final String secret;
     private final Long expiration;
     private final Long refreshExpiration;
@@ -79,7 +82,23 @@ public class JwtTokenUtil {
         try {
             Jwts.parser().setSigningKey(secret).parseClaimsJws(token);
             return true;
+        } catch (io.jsonwebtoken.ExpiredJwtException e) {
+            logger.error("JWT令牌已过期: {}", e.getMessage());
+            return false;
+        } catch (io.jsonwebtoken.MalformedJwtException e) {
+            logger.error("JWT令牌格式错误: {}", e.getMessage());
+            return false;
+        } catch (io.jsonwebtoken.SignatureException e) {
+            logger.error("JWT令牌签名错误: {}", e.getMessage());
+            return false;
+        } catch (io.jsonwebtoken.UnsupportedJwtException e) {
+            logger.error("JWT令牌不支持: {}", e.getMessage());
+            return false;
+        } catch (IllegalArgumentException e) {
+            logger.error("JWT令牌参数错误: {}", e.getMessage());
+            return false;
         } catch (Exception e) {
+            logger.error("JWT令牌验证失败: {}", e.getMessage());
             return false;
         }
     }

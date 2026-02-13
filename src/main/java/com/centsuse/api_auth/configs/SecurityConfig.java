@@ -3,6 +3,7 @@ package com.centsuse.api_auth.configs;
 import com.centsuse.api_auth.filters.JwtAccessDeniedHandler;
 import com.centsuse.api_auth.filters.JwtAuthenticationEntryPoint;
 import com.centsuse.api_auth.filters.JwtAuthenticationFilter;
+import com.centsuse.api_auth.filters.RateLimitFilter;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -35,6 +36,9 @@ public class SecurityConfig {
     @Autowired
     private JwtAccessDeniedHandler jwtAccessDeniedHandler;
 
+    @Autowired
+    private RateLimitFilter rateLimitFilter;
+
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
@@ -42,6 +46,18 @@ public class SecurityConfig {
                 .csrf(AbstractHttpConfigurer::disable)
                 // 设置会话为无状态
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                // 配置CORS
+                .cors(cors -> cors
+                        .configurationSource(request -> {
+                            org.springframework.web.cors.CorsConfiguration config = new org.springframework.web.cors.CorsConfiguration();
+                            config.addAllowedOriginPattern("*");
+                            config.addAllowedMethod("*");
+                            config.addAllowedHeader("*");
+                            config.setAllowCredentials(true);
+                            config.setMaxAge(3600L);
+                            return config;
+                        })
+                )
                 // 权限配置
                 .authorizeHttpRequests(auth -> auth
                         // 公开接口
@@ -49,13 +65,20 @@ public class SecurityConfig {
                                 "/auth/login",
                                 "/auth/refresh",
                                 "/auth/register",
+                                "/swagger-ui.html",
                                 "/swagger-ui/**",
                                 "/v3/api-docs/**",
-                                "/error"
+                                "/v3/api-docs.yaml",
+                                "/swagger-resources/**",
+                                "/webjars/**",
+                                "/error",
+                                "/actuator/**"
                         ).permitAll()
                         // 需要认证的接口
                         .anyRequest().authenticated()
                 )
+                // 添加限流过滤器
+                .addFilterBefore(rateLimitFilter, UsernamePasswordAuthenticationFilter.class)
                 // 添加JWT过滤器
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
                 // 异常处理
