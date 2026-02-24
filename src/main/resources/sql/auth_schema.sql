@@ -168,7 +168,7 @@ CREATE TABLE `sys_operate_log` (
                                    `module` VARCHAR(100) COMMENT '操作模块',
                                    `type` TINYINT NOT NULL COMMENT '操作类型：1-新增，2-修改，3-删除，4-查询',
                                    `content` TEXT NOT NULL COMMENT '操作内容',
-                                   `user_id` BIGINT NOT NULL COMMENT '操作人ID',
+                                   `user_id` BIGINT COMMENT '操作人ID',
                                    `user_name` VARCHAR(64) COMMENT '操作人姓名',
                                    `ip_address` VARCHAR(50) COMMENT '操作IP',
                                    `user_agent` VARCHAR(500) COMMENT '用户代理',

@@ -3,9 +3,6 @@ package com.centsuse.api_auth.dtos;
 import jakarta.validation.constraints.NotBlank;
 import lombok.*;
 
-/**
- * @author bobo
- */
 @Data
 @Builder
 @NoArgsConstructor
@@ -19,7 +16,8 @@ public class RegisterRequest {
     private String password;
 
     private String nickname;
+
     private String email;
+
     private String phone;
-    private String appCode;
 }

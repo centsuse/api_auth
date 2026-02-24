@@ -74,7 +74,6 @@ public class AuthController {
     public ResponseEntity<?> login(@RequestBody @Valid LoginRequest request,
                                    HttpServletRequest httpRequest) {
         try {
-            // 身份验证
             Authentication authentication = authenticationManager.authenticate(
                     new UsernamePasswordAuthenticationToken(request.getUsername(), request.getPassword())
             );
@@ -82,14 +81,11 @@ public class AuthController {
             SecurityContextHolder.getContext().setAuthentication(authentication);
             AuthUser userDetails = (AuthUser) authentication.getPrincipal();
 
-            // 生成令牌
             String accessToken = jwtTokenUtil.generateToken(userDetails);
             String refreshToken = jwtTokenUtil.generateRefreshToken(userDetails);
 
-            // 保存令牌信息
             saveTokenInfo(userDetails, accessToken, refreshToken, httpRequest);
 
-            // 记录操作日志
             operateLogUtil.logLogin("用户登录成功", 1, httpRequest);
 
             return ResponseEntity.ok(LoginResponse.builder()
@@ -100,11 +96,21 @@ public class AuthController {
                     .userInfo(buildUserInfo(userDetails))
                     .build());
 
+        } catch (org.springframework.security.authentication.BadCredentialsException e) {
+            log.error("登录失败: 用户名或密码错误");
+            operateLogUtil.logLogin("用户登录失败: 用户名或密码错误", 0, httpRequest);
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(ApiResponse.error("用户名或密码错误"));
+        } catch (org.springframework.security.authentication.DisabledException e) {
+            log.error("登录失败: 用户已被禁用");
+            operateLogUtil.logLogin("用户登录失败: 用户已被禁用", 0, httpRequest);
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(ApiResponse.error("用户已被禁用"));
         } catch (Exception e) {
             log.error("登录失败: {}", e.getMessage());
             operateLogUtil.logLogin("用户登录失败: " + e.getMessage(), 0, httpRequest);
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                    .body(ApiResponse.error("用户名或密码错误"));
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ApiResponse.error("登录失败，请稍后重试"));
         }
     }
 

@@ -25,26 +25,22 @@ spring:
           min-idle: 0
           max-wait: -1ms
         timeout: 5000ms
-  elasticsearch:
-    uris: ["http://localhost:9200"]
-    connection-timeout: 5s
-    socket-timeout: 30s
 
-# ??????
+# 认证配置
 auth:
   token:
-    # ????????(?)
+    # 访问令牌过期时间(秒)
     access-token-expire: 3600
-    # ????????(?)
+    # 刷新令牌过期时间(秒)
     refresh-token-expire: 86400
     token-prefix: "Bearer "
     secret-key: "auth-server-secret-key-2023#$%^&*()"
   cache:
     local:
-      # ????????(?)
+      # 本地缓存过期时间(秒)
       expire: 300
     redis:
-      # Redis??????(?)
+      # Redis缓存过期时间(秒)
       expire: 1800
   cors:
     allowed-origins: "*"
@@ -52,7 +48,7 @@ auth:
     allowed-headers: "*"
     max-age: 3600
 
-# ????# 日志配置
+# 日志配置
 logging:
   level:
     root: INFO
@@ -64,8 +60,8 @@ logging:
 # JWT配置
 jwt:
   secret: your-jwt-secret-key-change-in-production
-  expiration: 7200    # 2小时
-  refresh-expiration: 2592000  # 30天
+  expiration: 7200
+  refresh-expiration: 2592000
 
 # Actuator配置
 management:

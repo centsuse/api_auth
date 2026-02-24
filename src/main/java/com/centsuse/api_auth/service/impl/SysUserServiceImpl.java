@@ -145,15 +145,13 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser>
             throw new RuntimeException("用户不存在");
         }
 
-        // 逻辑删除：将状态设置为0（禁用）
         user.setStatus(0);
         user.setUpdateTime(new Date());
         this.updateById(user);
 
-        // 也可以选择物理删除用户角色关系
-        // QueryWrapper<SysUserRole> wrapper = new QueryWrapper<>();
-        // wrapper.eq("user_id", userId);
-        // userRoleMapper.delete(wrapper);
+        QueryWrapper<SysUserRole> wrapper = new QueryWrapper<>();
+        wrapper.eq("user_id", userId);
+        userRoleMapper.delete(wrapper);
     }
 
     @Override

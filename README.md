@@ -15,7 +15,7 @@ API认证服务是一个基于Spring Boot的微服务，提供用户认证、授
 | 缓存 | Redis | 7.0+ |
 | 认证 | JWT | 0.11.5 |
 | 工具 | Lombok | 1.18.30 |
-| 文档 | Swagger | 2.0.2 |
+| 文档 | Swagger | 2.7.0 |
 | 监控 | Spring Boot Actuator | 内置 |
 | 语言 | Java | 17 |
 

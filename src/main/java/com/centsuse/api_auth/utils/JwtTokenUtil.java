@@ -3,25 +3,24 @@ package com.centsuse.api_auth.utils;
 import com.centsuse.api_auth.entities.AuthUser;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
-import io.jsonwebtoken.SignatureAlgorithm;
+import io.jsonwebtoken.security.Keys;
 import lombok.Data;
 import org.springframework.beans.factory.annotation.Value;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
+import javax.crypto.SecretKey;
+import java.nio.charset.StandardCharsets;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
 
-/**
- * @author bobo
- */
-@Component
 @Data
+@Component
 public class JwtTokenUtil {
     private static final Logger logger = LoggerFactory.getLogger(JwtTokenUtil.class);
-    private final String secret;
+    private final SecretKey key;
     private final Long expiration;
     private final Long refreshExpiration;
 
@@ -29,7 +28,7 @@ public class JwtTokenUtil {
             @Value("${jwt.secret:defaultSecretKey}") String secret,
             @Value("${jwt.expiration:7200}") Long expiration,
             @Value("${jwt.refresh-expiration:2592000}") Long refreshExpiration) {
-        this.secret = secret;
+        this.key = Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
         this.expiration = expiration;
         this.refreshExpiration = refreshExpiration;
     }
@@ -42,20 +41,23 @@ public class JwtTokenUtil {
         claims.put("isSuperAdmin", userDetails.getIsSuperAdmin());
 
         return Jwts.builder()
-                .setClaims(claims)
-                .setSubject(userDetails.getUsername())
+                .claim("userId", userDetails.getId())
+                .claim("username", userDetails.getUsername())
+                .claim("appCode", userDetails.getAppCode())
+                .claim("isSuperAdmin", userDetails.getIsSuperAdmin())
+                .claim("sub", userDetails.getUsername())
                 .setIssuedAt(new Date())
                 .setExpiration(new Date(System.currentTimeMillis() + expiration * 1000))
-                .signWith(SignatureAlgorithm.HS512, secret)
+                .signWith(key)
                 .compact();
     }
 
     public String generateRefreshToken(AuthUser userDetails) {
         return Jwts.builder()
-                .setSubject(userDetails.getUsername())
+                .claim("sub", userDetails.getUsername())
                 .setIssuedAt(new Date())
                 .setExpiration(new Date(System.currentTimeMillis() + refreshExpiration * 1000))
-                .signWith(SignatureAlgorithm.HS512, secret)
+                .signWith(key)
                 .compact();
     }
 
@@ -72,15 +74,16 @@ public class JwtTokenUtil {
     }
 
     public Claims getClaimsFromToken(String token) {
-        return Jwts.parser()
-                .setSigningKey(secret)
+        return Jwts.parserBuilder()
+                .setSigningKey(key)
+                .build()
                 .parseClaimsJws(token)
                 .getBody();
     }
 
     public boolean validateToken(String token) {
         try {
-            Jwts.parser().setSigningKey(secret).parseClaimsJws(token);
+            Jwts.parserBuilder().setSigningKey(key).build().parseClaimsJws(token);
             return true;
         } catch (io.jsonwebtoken.ExpiredJwtException e) {
             logger.error("JWT令牌已过期: {}", e.getMessage());
@@ -88,7 +91,7 @@ public class JwtTokenUtil {
         } catch (io.jsonwebtoken.MalformedJwtException e) {
             logger.error("JWT令牌格式错误: {}", e.getMessage());
             return false;
-        } catch (io.jsonwebtoken.SignatureException e) {
+        } catch (io.jsonwebtoken.security.SignatureException e) {
             logger.error("JWT令牌签名错误: {}", e.getMessage());
             return false;
         } catch (io.jsonwebtoken.UnsupportedJwtException e) {

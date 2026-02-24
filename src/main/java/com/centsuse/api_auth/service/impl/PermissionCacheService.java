@@ -1,6 +1,7 @@
 package com.centsuse.api_auth.service.impl;
 
 import com.centsuse.api_auth.configs.constants.RedisKeyConstants;
+import com.centsuse.api_auth.dao.SysPermission;
 import com.centsuse.api_auth.mapper.SysPermissionMapper;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.RedisTemplate;
@@ -17,7 +18,7 @@ import java.util.stream.Collectors;
  */
 @Component
 public class PermissionCacheService {
-    //TODO 缓存类，后续处理
+
     @Autowired
     private RedisTemplate<String, Object> redisTemplate;
 
@@ -29,7 +30,8 @@ public class PermissionCacheService {
         List<GrantedAuthority> authorities = (List<GrantedAuthority>) redisTemplate.opsForValue().get(cacheKey);
         
         if (authorities == null) {
-            authorities = sysPermissionMapper.selectPermissionsByUserId(userId).stream()
+            List<SysPermission> permissions = sysPermissionMapper.selectPermissionsByUserId(userId);
+            authorities = permissions.stream()
                 .map(perm -> new SimpleGrantedAuthority(perm.getCode()))
                 .collect(Collectors.toList());
                 
@@ -37,5 +39,10 @@ public class PermissionCacheService {
         }
         
         return authorities;
+    }
+
+    public void clearUserPermissions(Long userId) {
+        String cacheKey = RedisKeyConstants.getUserPermissionsKey(userId);
+        redisTemplate.delete(cacheKey);
     }
 }

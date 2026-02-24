@@ -5,14 +5,15 @@
 <mapper namespace="com.centsuse.api_auth.mapper.SysUserRoleMapper">
 
     <resultMap id="BaseResultMap" type="com.centsuse.api_auth.dao.SysUserRole">
-            <id property="id" column="id" />
-            <result property="userId" column="user_id" />
-            <result property="roleId" column="role_id" />
-            <result property="createTime" column="create_time" />
-            <result property="createBy" column="create_by" />
+        <id property="id" column="id" />
+        <result property="userId" column="user_id" />
+        <result property="roleId" column="role_id" />
+        <result property="appCode" column="app_code" />
+        <result property="createTime" column="create_time" />
+        <result property="createBy" column="create_by" />
     </resultMap>
 
     <sql id="Base_Column_List">
-        id,user_id,role_id,create_time,create_by
+        id, user_id, role_id, app_code, create_time, create_by
     </sql>
 </mapper>

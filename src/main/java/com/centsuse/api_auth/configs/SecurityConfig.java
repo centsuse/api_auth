@@ -67,10 +67,11 @@ public class SecurityConfig {
                                 "/auth/register",
                                 "/swagger-ui.html",
                                 "/swagger-ui/**",
+                                "/swagger-ui/index.html",
+                                "/swagger-ui/**",
                                 "/v3/api-docs/**",
                                 "/v3/api-docs.yaml",
                                 "/swagger-resources/**",
-                                "/webjars/**",
                                 "/error",
                                 "/actuator/**"
                         ).permitAll()
